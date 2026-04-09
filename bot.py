@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 from dotenv import load_dotenv
 
 from src.youtube_transcript import get_yt_transcript
-from src.ai_engine import generate_linkedin_post, generate_infographic_content, generate_infographic_svg
+from src.ai_engine import generate_full_bundle
 from src.excel_storage import save_to_local_excel
 from src.utils import setup_logger, convert_svg_to_png
 
@@ -25,7 +25,11 @@ async def process_video_logic(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         transcript = get_yt_transcript(video_url)
-        post = generate_linkedin_post(transcript)
+        # Llamada única para todos los activos (Ahorro de Tokens)
+        bundle = generate_full_bundle(transcript)
+        context.user_data['last_bundle'] = bundle
+        
+        post = bundle.get('post', '⚠️ No se pudo generar el post.')
         
         try:
             save_to_local_excel(f"Post: {video_url}", post)
@@ -38,7 +42,6 @@ async def process_video_logic(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         keyboard = [[InlineKeyboardButton("✅ Sí, crear infografía", callback_data='gen_info_yes'),
                      InlineKeyboardButton("❌ No, gracias", callback_data='gen_info_no')]]
-        context.user_data['last_transcript'] = transcript
         await send_safe_message(context.bot, update.effective_chat.id, "¿Deseas crear una infografía?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
@@ -69,11 +72,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         url = context.user_data.get('last_video_url')
         if url: await process_video_logic(update, context, url)
     elif query.data == 'gen_info_yes':
-        transcript = context.user_data.get('last_transcript')
-        if not transcript: return
+        bundle = context.user_data.get('last_bundle')
+        if not bundle:
+             await query.edit_message_text(text="❌ No se encontró la información en caché. Por favor, procesa el video de nuevo.")
+             return
+             
         await query.edit_message_text(text="🎨 Diseñando infografía...")
         try:
-            svg_code = generate_infographic_svg(transcript)
+            # Recuperar datos del bundle (ya generados)
+            info_text = bundle.get('info_md', 'Sin resumen disponible.')
+            svg_code = bundle.get('info_svg', '')
+            
+            # Enviar resumen primero
+            await send_safe_message(context.bot, update.effective_chat.id, f"📊 **Estructura de la Infografía:**\n\n{info_text}")
+
             temp_dir = ".tmp"
             if not os.path.exists(temp_dir): os.makedirs(temp_dir)
             
@@ -84,7 +96,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if convert_svg_to_png(svg_path, png_path):
                 with open(png_path, "rb") as p:
-                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=p, caption="✨ Tu infografía!")
+                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=p, caption="✨ Tu infografía visual!")
             
             with open(svg_path, "rb") as d:
                 await context.bot.send_document(chat_id=update.effective_chat.id, document=d, filename="vector.svg")
