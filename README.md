@@ -24,6 +24,13 @@ Es un asistente inteligente que automatiza el flujo de trabajo de "repurpose" de
 - 💾 **Historial Local**: Guarda todos los posts generados en un archivo Excel automático.
 - 🤖 **Bot de Telegram**: Interfaz amigable para realizar todo el proceso desde el móvil.
 
+## 💎 Economía de Tokens (Optimización)
+
+Para maximizar la eficiencia y reducir el consumo de la API de Gemini, el sistema implementa:
+- **Unified Content Bundle**: Genera el post de LinkedIn, el resumen y el código SVG en una única transacción de tokens.
+- **Smart Slicing**: Trunca automáticamente videos largos, priorizando el inicio (Hooks) y el final (Conclusiones) para mantener el contexto esencial sin desperdiciar tokens.
+- **Noise Filtering**: Limpia muletillas (`[Música]`, `[Aplausos]`, etc.) y optimiza el texto antes de enviarlo a la IA.
+
 ## 🚀 Instalación Rápida
 
 1.  **Clonar el repo**:
